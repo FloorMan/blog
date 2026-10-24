@@ -1,0 +1,313 @@
+/* =============================================
+   Understanding Figgie: post-specific styles
+   Scoped to body.figgie so nothing leaks into the rest of the blog.
+   ============================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=DM+Serif+Display:ital@0;1&display=swap');
+
+body.figgie {
+  --fg-bg: #0e0f0c;
+  --fg-surface: #161714;
+  --fg-border: #2a2c27;
+  --fg-lime: #c8f03a;
+  --fg-olive: #5a7a00;      /* lime, darkened for use on a light page */
+  --fg-text-light: #e8e8e4;
+  --fg-muted: #7a7d72;
+  --fg-red: #c8402c;
+  --fg-gold: #c8901a;
+  --fg-line: #e3e4de;
+  --fg-paper: #fafaf7;
+  --fg-mono: 'IBM Plex Mono', SFMono-Regular, Menlo, monospace;
+  --fg-serif: 'DM Serif Display', Georgia, serif;
+}
+
+/* ---- Title banner (the "hero") ---- */
+body.figgie .quarto-title-banner { padding: 3.5rem 0 2.75rem; }
+body.figgie .quarto-title-banner h1.title {
+  font-family: var(--fg-serif);
+  font-weight: 400;
+  font-size: clamp(2.4rem, 6vw, 3.6rem);
+  line-height: 1.05;
+}
+body.figgie .quarto-title-banner .description {
+  color: #b9bab2;
+  font-size: 1.05rem;
+  max-width: 46rem;
+  line-height: 1.6;
+}
+body.figgie .quarto-title-banner .quarto-category {
+  font-family: var(--fg-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-color: var(--fg-border);
+  color: var(--fg-lime);
+  opacity: 1;
+}
+
+.figgie .hero-tag {
+  font-family: var(--fg-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--fg-olive);
+  margin-bottom: 0.5rem;
+}
+
+.figgie .hero-links { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 1.25rem 0 1.75rem; }
+.figgie .hero-links p { display: contents; }
+.figgie .btn-figgie-primary,
+.figgie .btn-figgie-outline {
+  font-family: var(--fg-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  border-radius: 3px;
+  padding: 0.45rem 0.95rem;
+  text-decoration: none;
+}
+.figgie .btn-figgie-primary { background: var(--fg-bg); color: var(--fg-lime); border: 1px solid var(--fg-bg); }
+.figgie .btn-figgie-primary:hover { background: #262822; color: var(--fg-lime); }
+.figgie .btn-figgie-outline { background: transparent; color: var(--fg-bg); border: 1px solid #c9cbc2; }
+.figgie .btn-figgie-outline:hover { border-color: var(--fg-bg); color: var(--fg-bg); }
+
+/* ---- Status bar ---- */
+.figgie .status-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  background: var(--fg-surface);
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 0 0 2.5rem;
+}
+.figgie .status-item { padding: 0.9rem 1.1rem; border-right: 1px solid var(--fg-border); }
+.figgie .status-item:last-child { border-right: none; }
+.figgie .status-item p { margin: 0; }
+.figgie .status-label {
+  display: block;
+  font-family: var(--fg-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.figgie .status-value {
+  display: block;
+  font-family: var(--fg-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--fg-lime);
+}
+.figgie .status-value.warn { color: #f0b840; }
+.figgie .status-value.dim { color: var(--fg-muted); font-weight: 400; }
+
+/* ---- Numbered section headers (01, 02, ...) ---- */
+.figgie main.content { counter-reset: figgie-sec; }
+.figgie main.content section.level2 > h2 {
+  font-family: var(--fg-serif);
+  font-weight: 400;
+  font-size: 2rem;
+  border-bottom: 1px solid var(--fg-line);
+  padding-bottom: 0.6rem;
+  margin-top: 3.5rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+}
+.figgie main.content section.level2 > h2::before {
+  counter-increment: figgie-sec;
+  content: counter(figgie-sec, decimal-leading-zero);
+  font-family: var(--fg-mono);
+  font-size: 0.8rem;
+  color: var(--fg-olive);
+  letter-spacing: 0.05em;
+}
+.figgie main.content h3 { font-weight: 600; margin-top: 2.25rem; }
+
+/* ---- Suit cards ---- */
+.figgie .figgie-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin: 1.75rem 0;
+}
+.figgie .figgie-card {
+  background: var(--fg-paper);
+  border: 1px solid var(--fg-line);
+  border-radius: 6px;
+  padding: 1.2rem 1.25rem;
+  font-size: 0.93rem;
+  line-height: 1.6;
+}
+.figgie .figgie-card p { margin-bottom: 0; }
+@media (max-width: 640px) { .figgie .figgie-cards { grid-template-columns: 1fr; } }
+.figgie .card-suit { display: block; font-size: 1.6rem; line-height: 1; margin-bottom: 0.6rem; }
+.figgie .card-suit.spade { color: var(--fg-bg); }
+.figgie .card-suit.heart { color: var(--fg-red); }
+.figgie .card-suit.diamond { color: var(--fg-gold); }
+.figgie .card-suit.club { color: var(--fg-olive); }
+.figgie .card-title {
+  display: block;
+  font-family: var(--fg-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+/* ---- Math blocks ---- */
+.figgie .math.display { font-size: 1.05em; }
+.figgie mjx-container[display="true"] { overflow-x: auto; overflow-y: hidden; padding: 0.25rem 0; }
+
+/* ---- Figures: the plots are dark, so frame them ---- */
+.figgie .quarto-figure img {
+  border-radius: 6px;
+  background: var(--fg-surface);
+  border: 1px solid var(--fg-border);
+}
+.figgie .quarto-figure figcaption {
+  font-family: var(--fg-mono);
+  font-size: 0.75rem;
+  color: #6b6e63;
+  margin-top: 0.5rem;
+}
+.figgie .fig-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start; }
+.figgie .fig-pair .quarto-figure { margin-bottom: 0.5rem; }
+@media (max-width: 640px) { .figgie .fig-pair { grid-template-columns: 1fr; } }
+
+/* ---- Blockquote ---- */
+.figgie blockquote {
+  border-left: 3px solid var(--fg-olive);
+  padding: 0.4rem 0 0.4rem 1.25rem;
+  margin: 2rem 0;
+  color: inherit;
+}
+.figgie blockquote p:first-child { font-family: var(--fg-serif); font-style: italic; font-size: 1.35rem; line-height: 1.4; }
+.figgie blockquote cite { font-family: var(--fg-mono); font-size: 0.72rem; font-style: normal; color: var(--fg-muted); }
+.figgie blockquote cite::before { content: "— "; }
+
+/* ---- Placeholder ---- */
+.figgie .wip-box {
+  border: 1px dashed #c9cbc2;
+  border-radius: 6px;
+  padding: 1.6rem;
+  text-align: center;
+  font-family: var(--fg-mono);
+  font-size: 0.8rem;
+  color: var(--fg-muted);
+  margin: 1.5rem 0;
+}
+.figgie .wip-box p { margin: 0; }
+
+/* ---- Roadmap ---- */
+.figgie .roadmap {
+  border: 1px solid var(--fg-line);
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 1.25rem 0;
+}
+.figgie .roadmap > p:first-child { margin: 0; }
+.figgie .roadmap-header {
+  display: block;
+  background: var(--fg-surface);
+  color: var(--fg-text-light);
+  font-family: var(--fg-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.6rem 1rem;
+}
+.figgie .roadmap ul.task-list { list-style: none; margin: 0; padding: 0; }
+.figgie .roadmap ul.task-list li {
+  padding: 0.6rem 1rem;
+  border-top: 1px solid var(--fg-line);
+  font-size: 0.93rem;
+  line-height: 1.5;
+}
+.figgie .roadmap ul.task-list li:first-child { border-top: none; }
+.figgie .roadmap ul.task-list li label { display: block; position: relative; padding-left: 1.4rem; margin: 0; width: 100%; }
+.figgie .roadmap ul.task-list li label::after { content: ""; display: table; clear: both; }
+.figgie .roadmap ul.task-list input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  border: 1.5px solid #b5b7ad;
+  margin: 0;
+  position: absolute;
+  left: 0;
+  top: 0.45rem;
+}
+.figgie .roadmap ul.task-list input[type="checkbox"]:checked { background: var(--fg-olive); border-color: var(--fg-olive); }
+.figgie .roadmap ul.task-list li:has(input:checked) { color: #8a8d82; }
+.figgie .roadmap .tag {
+  float: right;
+  margin: 0.15rem 0 0 0.75rem;
+  font-family: var(--fg-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 0.1rem 0.45rem;
+  border-radius: 3px;
+}
+.figgie .tag-math { background: #eef5d6; color: #4a6010; }
+.figgie .tag-eng  { background: #fbf0d6; color: #8a5f00; }
+.figgie .tag-ml   { background: #fbe3df; color: #9a2f1e; }
+.figgie .tag-viz  { background: #e6e7ef; color: #3c4060; }
+
+/* ---- References ---- */
+.figgie .ref-list ol { list-style: none; counter-reset: ref; padding: 0; margin: 1rem 0; }
+.figgie .ref-list ol li {
+  counter-increment: ref;
+  position: relative;
+  padding: 0.75rem 0 0.75rem 2.75rem;
+  border-bottom: 1px solid var(--fg-line);
+  line-height: 1.5;
+}
+.figgie .ref-list ol li::before {
+  content: counter(ref, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 0.85rem;
+  font-family: var(--fg-mono);
+  font-size: 0.75rem;
+  color: var(--fg-olive);
+}
+.figgie .ref-list ol li p { margin: 0; }
+.figgie .ref-list a { font-weight: 500; text-decoration: none; }
+.figgie .ref-list a:hover { text-decoration: underline; }
+.figgie .ref-meta { font-family: var(--fg-mono); font-size: 0.72rem; color: var(--fg-muted); }
+.figgie .ref-badge {
+  font-family: var(--fg-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  padding: 0.05rem 0.4rem;
+  border-radius: 3px;
+  margin-left: 0.4rem;
+  white-space: nowrap;
+}
+.figgie .ref-badge.read { background: #eef5d6; color: #4a6010; }
+.figgie .ref-badge.unread { background: #f0f0ec; color: #7a7d72; }
+
+/* ---- Footer ---- */
+.figgie .figgie-footer {
+  margin-top: 3.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--fg-line);
+  text-align: center;
+  font-family: var(--fg-mono);
+  font-size: 0.72rem;
+  color: var(--fg-muted);
+  line-height: 1.9;
+}
+
+/* ---- Left table of contents ---- */
+.figgie #TOC .toc-actions, .figgie nav#TOC h2#toc-title {
+  font-family: var(--fg-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+.figgie nav#TOC .nav-link.active { color: var(--fg-olive); border-left-color: var(--fg-olive); }
