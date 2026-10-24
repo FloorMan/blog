@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.19">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Diego Aguirre">
+<meta name="dcterms.date" content="2026-10-24">
+<meta name="description" content="A mathematical deep-dive into optimizing strategy for Jane Street’s card-trading game: Bayesian inference, expected value, information theory, and eventually, reinforcement learning.">
+
+<title>Understanding Figgie – Diego’s Blog</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-bf27225e3a48a9273f3daa8f8e829971.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-172ba59bd5e0b52282274ba0c0cc16fc.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>
+
+      .quarto-title-block .quarto-title-banner h1,
+      .quarto-title-block .quarto-title-banner h2,
+      .quarto-title-block .quarto-title-banner h3,
+      .quarto-title-block .quarto-title-banner h4,
+      .quarto-title-block .quarto-title-banner h5,
+      .quarto-title-block .quarto-title-banner h6
+      {
+        color: #e8e8e4;
+      }
+
+      .quarto-title-block .quarto-title-banner {
+        color: #e8e8e4;
+background: #0e0f0c;
+      }
+</style>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../styles.css">
+<link rel="stylesheet" href="figgie.css">
+</head>
+
+<body class="floating nav-fixed figgie quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Diego’s Blog</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/FloorMan"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://bsky.app/"> <i class="bi bi-bluesky" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default toc-left page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Understanding Figgie</h1>
+                  <div>
+        <div class="description">
+          A mathematical deep-dive into optimizing strategy for Jane Street’s card-trading game: Bayesian inference, expected value, information theory, and eventually, reinforcement learning.
+        </div>
+      </div>
+                          <div class="quarto-categories">
+                <div class="quarto-category">figgie</div>
+                <div class="quarto-category">probability</div>
+                <div class="quarto-category">bayesian</div>
+                <div class="quarto-category">game theory</div>
+                <div class="quarto-category">quant</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-contents">
+               <p>Diego Aguirre </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">October 24, 2026</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Contents</h2>
+   
+  <ul>
+  <li><a href="#statistical-analysis" id="toc-statistical-analysis" class="nav-link active" data-scroll-target="#statistical-analysis">Statistical Analysis</a></li>
+  <li><a href="#bayesian" id="toc-bayesian" class="nav-link" data-scroll-target="#bayesian">Bayesian Inference</a>
+  <ul class="collapse">
+  <li><a href="#starting-hand" id="toc-starting-hand" class="nav-link" data-scroll-target="#starting-hand">Starting Hand</a></li>
+  <li><a href="#multi-suit" id="toc-multi-suit" class="nav-link" data-scroll-target="#multi-suit">All Cards Give Us Information</a></li>
+  </ul></li>
+  <li><a href="#ev" id="toc-ev" class="nav-link" data-scroll-target="#ev">Expected Value &amp; Rational Pricing</a>
+  <ul class="collapse">
+  <li><a href="#marginal-value" id="toc-marginal-value" class="nav-link" data-scroll-target="#marginal-value">Marginal Value per Card</a></li>
+  <li><a href="#ties" id="toc-ties" class="nav-link" data-scroll-target="#ties">Accounting for Ties</a></li>
+  </ul></li>
+  <li><a href="#game-server" id="toc-game-server" class="nav-link" data-scroll-target="#game-server">Game Server</a></li>
+  <li><a href="#information-flow" id="toc-information-flow" class="nav-link" data-scroll-target="#information-flow">Efficiency &amp; Information Flow</a></li>
+  <li><a href="#roadmap" id="toc-roadmap" class="nav-link" data-scroll-target="#roadmap">Project Roadmap</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a>
+  <ul class="collapse">
+  <li><a href="#math" id="toc-math" class="nav-link" data-scroll-target="#math">Math</a></li>
+  </ul></li>
+  </ul>
+</nav>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+<div class="hero-tag">
+<p>Jane Street · Market Microstructure · Quant Training</p>
+</div>
+<p>Trying to understand the math behind Figgie, and optimizing to win.</p>
+<div class="hero-links">
+<p><a href="https://www.figgie.com/how-to-play.html" class="btn btn-figgie-primary" target="_blank">↗ Rules</a> <a href="https://www.loganseaburg.com/blog/figgie-1-background" class="btn btn-figgie-outline" target="_blank">↗ Background Reading</a> <a href="https://arxiv.org/pdf/2110.00879" class="btn btn-figgie-outline" target="_blank">↗ Research Paper</a> <a href="https://github.com/FloorMan/figgie-insights" class="btn btn-figgie-outline" target="_blank">↗ Notebooks &amp; Code</a></p>
+</div>
+<div class="status-bar">
+<div class="status-item">
+<p><span class="status-label">Status</span> <span class="status-value">In Progress</span></p>
+</div>
+<div class="status-item">
+<p><span class="status-label">Probabilities</span> <span class="status-value">✓ Done</span></p>
+</div>
+<div class="status-item">
+<p><span class="status-label">Expected Value</span> <span class="status-value warn">In Progress</span></p>
+</div>
+<div class="status-item">
+<p><span class="status-label">Simulation</span> <span class="status-value dim">Pending</span></p>
+</div>
+<div class="status-item">
+<p><span class="status-label">RL Model</span> <span class="status-value dim">Pending</span></p>
+</div>
+</div>
+<section id="statistical-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="statistical-analysis">Statistical Analysis</h2>
+<p>To understand how to get better at the game, we must first understand our odds. Seeing how the cards are distributed can give us a leg up when making decisions. Everything flows downstream from knowing how likely a given hand composition is, and what it implies about the hidden state of the deck.</p>
+<div class="figgie-cards">
+<div class="figgie-card">
+<p><span class="card-suit spade">♠</span> <span class="card-title">Deck Structure</span></p>
+<p>40 cards across 4 suits. One suit has 12 cards (the <em>common</em> suit), two suits have 10, and one has 8. Each player is dealt 10 cards.</p>
+</div>
+<div class="figgie-card">
+<p><span class="card-suit heart">♥</span> <span class="card-title">Target Suit</span></p>
+<p>The target suit is the other suit of the common suit’s color: ♠↔︎♣ and ♥↔︎♦. If ♠ has 12, ♣ is the target. Each target card pays $10 from the $200 pot, and whoever holds the most target cards takes the rest.</p>
+</div>
+<div class="figgie-card">
+<p><span class="card-suit diamond">♦</span> <span class="card-title">Hidden Information</span></p>
+<p>Neither the common suit nor the target is revealed. Players must infer them from hand composition, market behavior, and sequential Bayesian updating.</p>
+</div>
+<div class="figgie-card">
+<p><span class="card-suit club">♣</span> <span class="card-title">Information Edge</span></p>
+<p>Superior inference about the target suit (or about what <em>others</em> believe) is the core alpha. This is a game about epistemics as much as trading.</p>
+</div>
+</div>
+</section>
+<section id="bayesian" class="level2">
+<h2 class="anchored" data-anchor-id="bayesian">Bayesian Inference</h2>
+<section id="starting-hand" class="level3">
+<h3 class="anchored" data-anchor-id="starting-hand">Starting Hand</h3>
+<p>The most important suit in the game is the target suit. This is the only suit that gets scored at the end of the round, and it can often swing a losing round into a winning game. To find the target suit, we need to find the common suit, which always has 12 cards.</p>
+<p>The common suit will be a randomly picked suit, made up of 12 cards. Since the common suit has the most cards, implicitly we know that we are more likely to hold a lot of the common suit than of any other suit.</p>
+<p>In Figgie, the common suit is hidden from us. If we draw 6 hearts, 2 spades, 1 diamond, and 1 club, we would assume that hearts is the common suit, since we are more likely to be dealt a higher number of the common suit than any other suit. But what are the odds exactly? What is the probability of hearts being the common suit given I’m dealt <span class="math inline">\(n\)</span> hearts?</p>
+<p>Using Bayes’ formula, we can calculate the conditional odds of a single suit being common, given a certain number of cards being dealt.</p>
+<p><span class="math display">\[P(A \mid B) = \frac{P(B \mid A) \cdot P(A)}{P(B)}\]</span></p>
+<p>For a given number of cards dealt <span class="math inline">\(K\)</span> from suit <span class="math inline">\(S\)</span>, we want to determine the probability that <span class="math inline">\(S\)</span> is the common suit <span class="math inline">\(C\)</span>:</p>
+<p><span class="math display">\[P(C = S \mid K_S = n) = \frac{P(K_S = n \mid C = S) \cdot P(C=S)}{P(K_S = n)}\]</span></p>
+<p>The probability that our given suit is the common suit is uniformly distributed:</p>
+<p><span class="math display">\[P(C=S) = \frac{1}{\text{Total Suits}} = \frac{1}{4}\]</span></p>
+<p>The probability of <span class="math inline">\(n\)</span> cards being dealt from suit <span class="math inline">\(S\)</span> is the number of combinations that give us <span class="math inline">\(n\)</span> cards of <span class="math inline">\(S\)</span> over the total number of possible hands. This gets particularly tricky when we consider that our suit could hold 12, 10, or 8 cards in the deck. To find the overall probability, we add together the case where our suit <span class="math inline">\(S\)</span> is common and the cases where <span class="math inline">\(S\)</span> is not common.</p>
+<p>In the case where <span class="math inline">\(S\)</span> is common, there is only one way the suit could be made up (<span class="math inline">\(S\)</span> has 12 cards total). We count the ways to choose <span class="math inline">\(n\)</span> cards from <span class="math inline">\(S\)</span> and the rest of the hand from the other 28 cards:</p>
+<p><span class="math display">\[\text{Combinations of } n \text{ cards from } S \mid \text{Common} = \binom{12}{n} \cdot \binom{40-12}{10-n}\]</span></p>
+<p>To find the probability, we divide these combinations by the total number of hands:</p>
+<p><span class="math display">\[P(K_S=n \mid C=S) = \frac{\binom{12}{n} \cdot \binom{40-12}{10-n}}{\binom{40}{10}}\]</span></p>
+<p>In the case where <span class="math inline">\(S\)</span> is not common, there are 2 different ways that <span class="math inline">\(S\)</span> could be made up: 10 cards or 8 cards. Of the three non-common suits, two have 10 cards and one has 8, so given <span class="math inline">\(S\)</span> isn’t common, it has 10 cards with probability <span class="math inline">\(\frac{2}{3}\)</span> and 8 cards with probability <span class="math inline">\(\frac{1}{3}\)</span>.</p>
+<p><span class="math display">\[\text{Combinations of } n \text{ cards} \mid \text{Not Common, 10 cards} = \binom{10}{n} \cdot \binom{40-10}{10-n}\]</span></p>
+<p><span class="math display">\[\text{Combinations of } n \text{ cards} \mid \text{Not Common, 8 cards} = \binom{8}{n} \cdot \binom{40-8}{10-n}\]</span></p>
+<p>We weight these two cases by how likely each one is, and divide by the total number of possible hands:</p>
+<p><span class="math display">\[P(K_S = n \mid C \neq S) = \frac{2}{3} \cdot \frac{\binom{10}{n} \binom{40-10}{10-n}}{\binom{40}{10}} + \frac{1}{3} \cdot \frac{\binom{8}{n} \binom{40-8}{10-n}}{\binom{40}{10}}\]</span></p>
+<p>To find the total probability of being dealt <span class="math inline">\(n\)</span> cards of <span class="math inline">\(S\)</span>, we add together these probabilities by their weights:</p>
+<p><span class="math display">\[P(K_S = n) = P(K_S=n \mid C=S) \cdot P(C=S) + P(K_S=n \mid C \neq S) \cdot P(C \neq S)\]</span></p>
+<p>Finally, we can reconstruct our probability of <span class="math inline">\(S\)</span> being the common suit:</p>
+<p><span class="math display">\[P(C = S \mid K_S = n) = \frac{P(K_S = n \mid C = S) \cdot P(C=S)}{P(K_S = n)}\]</span></p>
+<p>Below is the result of our calculations for each number <span class="math inline">\(n\)</span> dealt.</p>
+<div id="fig-common-n" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Line chart: the probability that spades is the common suit rises from 0.10 with 0 spades to 0.83 with 8 spades.">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-common-n-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="img/Prob_Spades_Being_Common.png" class="img-fluid figure-img" alt="Line chart: the probability that spades is the common suit rises from 0.10 with 0 spades to 0.83 with 8 spades.">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-common-n-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Probability that spades is the common suit given <span class="math inline">\(n\)</span> spades in the starting hand.
+</figcaption>
+</figure>
+</div>
+</section>
+<section id="multi-suit" class="level3">
+<h3 class="anchored" data-anchor-id="multi-suit">All Cards Give Us Information</h3>
+<p>We also have to consider the other cards in our starting hand, as these could also give us a leg up when evaluating our probability. Holding spades <em>and</em> hearts jointly updates our posterior across all four suit hypotheses. What happens if we have 7 spades and 2 hearts? How does this change our probability?</p>
+<div id="fig-common-hearts" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Line chart: with 6 spades, the probability that spades is common rises from 0.40 with 0 hearts to about 0.57 with 3 hearts.">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-common-hearts-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="img/Prob_Spades_Being_Common_with_Hearts.png" class="img-fluid figure-img" alt="Line chart: with 6 spades, the probability that spades is common rises from 0.40 with 0 hearts to about 0.57 with 3 hearts.">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-common-hearts-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: Probability that spades is the common suit given 6 spades and <span class="math inline">\(n\)</span> hearts.
+</figcaption>
+</figure>
+</div>
+<div id="fig-common-heatmap" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Heatmap of the probability that spades is common, by number of spades (x) and hearts (y) in hand.">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-common-heatmap-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="img/Prob_Spades_Common_with_Hearts_Heatmap.png" class="img-fluid figure-img" alt="Heatmap of the probability that spades is common, by number of spades (x) and hearts (y) in hand.">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-common-heatmap-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3: Posterior heatmap over every combination of spades and hearts in the starting hand. With 7 spades and 2 hearts, spades is the common suit with probability 0.70.
+</figcaption>
+</figure>
+</div>
+<blockquote class="blockquote">
+<p>Figgie is a game about information, not just cards. The hand is the prior; the market is the evidence.</p>
+<p><cite>Inspired by the Jane Street Figgie community</cite></p>
+</blockquote>
+</section>
+</section>
+<section id="ev" class="level2">
+<h2 class="anchored" data-anchor-id="ev">Expected Value &amp; Rational Pricing</h2>
+<p>One cannot win on probability alone. We have calculated the approximate probability of holding the common suit on the first draw, but the aim of the game is to end up with the most money. Knowing the common suit is only helpful because it lets us find the target suit, which is the only suit that awards chips at the end of the round.</p>
+<p>Going off of our priors (we will implement a model for updating our priors later on), we will find the marginal value of buying cards, the expected payout at the end of a round, and determine a policy to find the best price for buying a card.</p>
+<section id="marginal-value" class="level3">
+<h3 class="anchored" data-anchor-id="marginal-value">Marginal Value per Card</h3>
+<p>The marginal value of a card is the expected value of the end-of-round payoff that buying a single card will give us.</p>
+<p>Let:</p>
+<ul>
+<li><span class="math inline">\(X\)</span> be the suit</li>
+<li><span class="math inline">\(T\)</span> be the target suit</li>
+<li><span class="math inline">\(M\)</span> be the majority</li>
+<li><span class="math inline">\(H_X\)</span> be the number of cards of suit <span class="math inline">\(X\)</span> in your hand</li>
+</ul>
+<p><span class="math display">\[EV_X = P(T=X) \left(10 \cdot \mathbb{E}[H_X \mid T=X] + 200 \cdot P(M \mid T=X)\right)\]</span></p>
+<p>Our expected value for buying a card of suit <span class="math inline">\(X\)</span> is the combination of two terms: the payout per target card, and the payout for the majority pot. The payout per card at the end of the round is linear, but the probability of having the majority of suit <span class="math inline">\(X\)</span> at the end of the round is non-linear and discrete, due to the possibility of ties.</p>
+<p>Starting with <span class="math inline">\(10 \cdot \mathbb{E}[H_X \mid T=X]\)</span>, this represents our expected winnings from the target cards in our hand. Given our suit <span class="math inline">\(X\)</span> is the target suit <span class="math inline">\(T\)</span>, we multiply each card in hand by the payout at the end of the round (each target card receives $10).</p>
+<p>Our next term, <span class="math inline">\(200 \cdot P(M \mid T=X)\)</span>, represents the probability of winning the pot, given that our suit <span class="math inline">\(X\)</span> is the target suit <span class="math inline">\(T\)</span> (the pot is worth $200). We first look at our current hand of the target suit. Since we have <span class="math inline">\(n\)</span> cards in our hand, there must be <span class="math inline">\(10-n\)</span> cards split among the other players with ⅔ probability, or <span class="math inline">\(8-n\)</span> cards split among the other players with ⅓ probability. In either case, we can compute every way of splitting the cards among players and tally the cases where we have the majority of the target suit. We then divide that by our total space (total variations), weight those probabilities appropriately (⅔ for the 10-card case and ⅓ for the 8-card case), and add them together to find our total probability of holding the majority.</p>
+<p><span class="math display">\[P(M \mid T=X, K_X=10, H_X = n) = \frac{\text{Num } n \text{ majority for 10 cards}}{\text{Total distributions of 10 cards}}\]</span></p>
+<p><span class="math display">\[P(M \mid T=X, K_X=8, H_X = n) = \frac{\text{Num } n \text{ majority for 8 cards}}{\text{Total distributions of 8 cards}}\]</span></p>
+<p><span class="math display">\[P(M \mid T=X, H_X = n) = P(M \mid T=X, K_X = 10, H_X = n) \cdot \frac{2}{3} + P(M \mid T=X, K_X = 8, H_X = n) \cdot \frac{1}{3}\]</span></p>
+<div id="fig-majority" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Line chart: probability of majority is 0 for 0 to 2 cards, 0.05 at 3, 0.50 at 4, 0.90 at 5, and 1.0 from 6 cards on.">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-majority-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="img/Majority_Suit_Given_Observation.png" class="img-fluid figure-img" alt="Line chart: probability of majority is 0 for 0 to 2 cards, 0.05 at 3, 0.50 at 4, 0.90 at 5, and 1.0 from 6 cards on.">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-majority-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;4: Probability of holding the majority of a suit given the number of cards of that suit in hand (ties excluded).
+</figcaption>
+</figure>
+</div>
+<p>Combining the prior on the target suit with the payout terms gives the expected payout of a hand, and the difference between adjacent columns gives the marginal value of picking up one more card. The <em>cross suit</em> is the other suit of the same color: the more of it we hold, the more likely it is the common suit, which makes our suit the target.</p>
+<div class="fig-pair">
+<div id="fig-ev-prior" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Heatmap of expected payout by cards of the suit held (x) and initial cross-suit observation (y).">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-ev-prior-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="img/Expected_payout_with_prior.png" class="img-fluid figure-img" alt="Heatmap of expected payout by cards of the suit held (x) and initial cross-suit observation (y).">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-ev-prior-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;5: Expected payout of a hand given the prior.
+</figcaption>
+</figure>
+</div>
+<div id="fig-mv-prior" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Heatmap of marginal value of one more card, peaking when going from 3 to 4 cards.">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-mv-prior-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="img/Marginal_Value_New_Card.png" class="img-fluid figure-img" alt="Heatmap of marginal value of one more card, peaking when going from 3 to 4 cards.">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-mv-prior-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;6: Marginal value of a new card given the prior.
+</figcaption>
+</figure>
+</div>
+</div>
+</section>
+<section id="ties" class="level3">
+<h3 class="anchored" data-anchor-id="ties">Accounting for Ties</h3>
+<p>However, this does not account for the possibility of a tie. We could end up in a scenario where we and another player both have 4 cards of the target suit, or even where 3 players share the majority. To account for this, we need to update our expected value.</p>
+<p><span class="math display">\[200 \cdot P(M) + 200 \cdot \mathbb{E}\left[\tfrac{1}{k} \mid M=M_i\right] \cdot P(M=M_i)\]</span></p>
+<p>Here we have two terms. The first is the expected value of the pot given we have the outright majority, and the second is the expected value of the pot given that we tie. Since having the outright majority and being in a tie are mutually exclusive, we can simply add the expected value of a tie into our model.</p>
+<p>In the case of a tie, the pot is split evenly among the players who collected the most target cards. For example, if the target <span class="math inline">\(T\)</span> was hearts, and player two and I both collected 4 hearts, we would split the pot evenly. To model this expected value, we want to find the expected value of <span class="math inline">\(\frac{1}{k}\)</span>, where <span class="math inline">\(k\)</span> is the number of players who tied.</p>
+<div class="fig-pair">
+<div id="fig-ev-ties" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Heatmap of expected payout including split pots.">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-ev-ties-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="img/Expected_payout_with_ties.png" class="img-fluid figure-img" alt="Heatmap of expected payout including split pots.">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-ev-ties-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;7: Expected payout of a hand given the prior, including ties.
+</figcaption>
+</figure>
+</div>
+<div id="fig-mv-ties" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Heatmap of marginal value including ties; value is spread more evenly across 2 to 4 cards.">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-mv-ties-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="img/marginal_value_with_ties.png" class="img-fluid figure-img" alt="Heatmap of marginal value including ties; value is spread more evenly across 2 to 4 cards.">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-mv-ties-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;8: Marginal value of a new card given the prior, including ties.
+</figcaption>
+</figure>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled" title="Work in progress">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Work in progress
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>The tie derivation is still being written up. Next up: turning marginal value into a bid/ask policy.</p>
+</div>
+</div>
+</section>
+</section>
+<section id="game-server" class="level2">
+<h2 class="anchored" data-anchor-id="game-server">Game Server</h2>
+<p>For this project, I’ve elected to write the <strong>server in Rust</strong> for efficiency and concurrency, speeding up analysis. I will implement the real-time game engine and traders in Rust, and store all game results and game states in a PostgreSQL database. We will connect to the game engine via WebSockets to display analytics in a dashboard.</p>
+<p>The work in progress lives in the <a href="https://github.com/FloorMan/figgie-insights/tree/main/server"><code>server/</code> folder of the project repo</a>.</p>
+</section>
+<section id="information-flow" class="level2">
+<h2 class="anchored" data-anchor-id="information-flow">Efficiency &amp; Information Flow</h2>
+<p>Markets in Figgie are short (4 minutes), noisy, and played by humans under pressure. This section will examine how price discovery unfolds over the round, whether markets converge to true value, and how to quantify the value of private information.</p>
+<div class="wip-box">
+<p>⚙️ Section in progress: information theory analysis coming soon</p>
+</div>
+</section>
+<section id="roadmap" class="level2">
+<h2 class="anchored" data-anchor-id="roadmap">Project Roadmap</h2>
+<p>Active research and engineering tasks, tracked as the analysis is completed.</p>
+<div class="roadmap">
+<p><span class="roadmap-header">Math &amp; Analysis</span></p>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="">Probability of common suit given <span class="math inline">\(n\)</span> cards of one suit <span class="tag tag-math">MATH</span></label></li>
+<li><label><input type="checkbox" checked="">Probability of common suit given the whole starting hand <span class="tag tag-math">MATH</span></label></li>
+<li><label><input type="checkbox" checked="">Probability of every hand <span class="tag tag-math">MATH</span></label></li>
+<li><label><input type="checkbox" checked="">Expected value of each card and the marginal value of trades <span class="tag tag-math">MATH</span></label></li>
+<li><label><input type="checkbox" checked="">Optimal distribution of hand at end of round: payout for guessing correctly, weighted by probability <span class="tag tag-math">MATH</span></label></li>
+<li><label><input type="checkbox" checked="">Value of information: quantifying the value of knowing your hand, information gain, and the monetary value of entropy reduction <span class="tag tag-math">MATH</span></label></li>
+<li><label><input type="checkbox">Sequential Bayesian updating: how market info changes the posterior <span class="tag tag-math">MATH</span></label></li>
+<li><label><input type="checkbox">Does price converge to true value? Do traders overpay near the threshold? <span class="math inline">\(\text{Price}_X = \alpha + \beta \cdot P(T=X)\)</span> <span class="tag tag-math">MATH</span></label></li>
+<li><label><input type="checkbox">Risk analysis: variance of payoff, downside risk <span class="tag tag-math">MATH</span></label></li>
+<li><label><input type="checkbox">Early-round vs.&nbsp;late-round trade profitability <span class="tag tag-math">MATH</span></label></li>
+</ul>
+</div>
+<div class="roadmap">
+<p><span class="roadmap-header">Engineering</span></p>
+<ul class="task-list">
+<li><label><input type="checkbox">First couple of strategies <span class="tag tag-eng">ENG</span></label></li>
+<li><label><input type="checkbox">Rough simulation <span class="tag tag-eng">ENG</span></label></li>
+<li><label><input type="checkbox">Dashboard with results <span class="tag tag-eng">ENG</span></label></li>
+<li><label><input type="checkbox">Auto-strategy bots <span class="tag tag-eng">ENG</span></label></li>
+<li><label><input type="checkbox">Server-client backend in Rust, in a Docker container <span class="tag tag-eng">ENG</span></label></li>
+<li><label><input type="checkbox">PostgreSQL database for results <span class="tag tag-eng">ENG</span></label></li>
+<li><label><input type="checkbox">WebSocket server support <span class="tag tag-eng">ENG</span></label></li>
+<li><label><input type="checkbox">GUI for live-game visualization <span class="tag tag-eng">ENG</span></label></li>
+</ul>
+</div>
+<div class="roadmap">
+<p><span class="roadmap-header">Machine Learning</span></p>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="">Implement <em>Traders in a Strange Land</em> bots <span class="tag tag-ml">ML</span></label></li>
+<li><label><input type="checkbox">Reinforcement learning model <span class="tag tag-ml">ML</span></label></li>
+<li><label><input type="checkbox">Various ML-based strategy models <span class="tag tag-ml">ML</span></label></li>
+</ul>
+</div>
+<div class="roadmap">
+<p><span class="roadmap-header">Visualizations</span></p>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="">Heatmap: posterior probability vs.&nbsp;hand composition <span class="tag tag-viz">VIZ</span></label></li>
+<li><label><input type="checkbox">3D surface: expected value of suit vs.&nbsp;posterior <span class="tag tag-viz">VIZ</span></label></li>
+<li><label><input type="checkbox">Convergence curve: price → true value <span class="tag tag-viz">VIZ</span></label></li>
+<li><label><input type="checkbox">Simulated distribution of profits by strategy <span class="tag tag-viz">VIZ</span></label></li>
+<li><label><input type="checkbox">Entropy decay over time <span class="tag tag-viz">VIZ</span></label></li>
+</ul>
+</div>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<div class="ref-list">
+<ol type="1">
+<li><a href="https://www.figgie.com/how-to-play.html">Figgie: Official Rules ↗</a><br>
+<span class="ref-meta">figgie.com · Jane Street</span> <span class="ref-badge read">✓ Read</span></li>
+<li><a href="https://www.loganseaburg.com/blog/figgie-1-background">Understanding Figgie: Background ↗</a><br>
+<span class="ref-meta">loganseaburg.com · Logan Seaburg</span> <span class="ref-badge read">✓ Read</span></li>
+<li><a href="https://www.youtube.com/watch?v=2GiLRKDe_w4">Figgie Day 2: Strategic Formalization ↗</a><br>
+<span class="ref-meta">youtube.com · someone’s first intuition on the game</span> <span class="ref-badge read">✓ Read</span></li>
+<li><a href="https://web.archive.org/web/20221230205817/https://www.thediff.co/archive/jane-street/">Understanding Jane Street ↗</a><br>
+<span class="ref-meta">thediff.co</span> <span class="ref-badge read">✓ Read</span></li>
+<li><a href="https://blog.rossry.net/figgie/">Poker is a bad game for teaching epistemics. Figgie is a better one. ↗</a><br>
+<span class="ref-meta">blog.rossry.net · Jane Street Figgie champion</span> <span class="ref-badge read">✓ Read</span></li>
+<li><a href="https://github.com/CodingYuno/figgiebot/tree/main">figgiebot ↗</a><br>
+<span class="ref-meta">github.com/CodingYuno · deprecated Figgie bot</span> <span class="ref-badge read">✓ Read</span></li>
+<li><a href="https://signalsandthreads.com/">Signals &amp; Threads: Jane Street Podcast ↗</a><br>
+<span class="ref-meta">signalsandthreads.com · Jane Street</span> <span class="ref-badge read">✓ Read</span></li>
+<li><a href="https://arxiv.org/pdf/2110.00879">Traders in a Strange Land ↗</a><br>
+<span class="ref-meta">arxiv.org · agent strategies for baseline performance</span> <span class="ref-badge unread">Unread</span></li>
+<li><a href="https://github.com/CornellDataScience/FiggieBot/tree/main">FiggieBot: Cornell Data Science ↗</a><br>
+<span class="ref-meta">github.com/CornellDataScience · bot backend</span> <span class="ref-badge unread">Unread</span></li>
+<li><a href="https://github.com/0xDub/figgie-auto">figgie-auto ↗</a><br>
+<span class="ref-meta">github.com/0xDub · trading strategies</span> <span class="ref-badge unread">Unread</span></li>
+<li><a href="https://github.com/LSeaburg/FiggieServer">FiggieServer ↗</a><br>
+<span class="ref-meta">github.com/LSeaburg · server from the blog writeup</span> <span class="ref-badge unread">Unread</span></li>
+<li><a href="https://rust-book.cs.brown.edu/ch00-00-introduction.html">The Rust Book ↗</a><br>
+<span class="ref-meta">rust-book.cs.brown.edu · learning Rust</span> <span class="ref-badge unread">Unread</span></li>
+</ol>
+</div>
+<section id="math" class="level3">
+<h3 class="anchored" data-anchor-id="math">Math</h3>
+<div class="ref-list">
+<ol type="1">
+<li><a href="https://dylanspicker.com/courses/STAT2593/content/Lesson%20014%20-%20Slides.pdf">Hypergeometric and Negative Binomial Distributions ↗</a><br>
+<span class="ref-meta">STAT 2593 lecture notes · Dylan Spicker</span> <span class="ref-badge unread">Unread</span></li>
+<li><a href="https://dylanspicker.com/courses/STAT2593/course_index.html">STAT 2593: Probability and Statistics for Engineers ↗</a><br>
+<span class="ref-meta">dylanspicker.com</span> <span class="ref-badge unread">Unread</span></li>
+<li><a href="https://www.youtube.com/watch?v=GqSX-8AQL90">Bayesian Updates and Conjugate Priors ↗</a><br>
+<span class="ref-meta">youtube.com · updating priors based on new info</span> <span class="ref-badge unread">Unread</span></li>
+<li><a href="https://www.youtube.com/watch?v=q8ypTSQotXQ">Conjugate Prior Examples ↗</a><br>
+<span class="ref-meta">youtube.com · normal and exponential distributions</span> <span class="ref-badge unread">Unread</span></li>
+<li><a href="https://www.youtube.com/watch?v=utawdulx0Bo">Updating a Beta Prior ↗</a><br>
+<span class="ref-meta">youtube.com</span> <span class="ref-badge unread">Unread</span></li>
+<li><a href="https://www.youtube.com/watch?v=GUx5sOIAlCg">Bayesian Hierarchical Models ↗</a><br>
+<span class="ref-meta">youtube.com</span> <span class="ref-badge unread">Unread</span></li>
+</ol>
+</div>
+<div class="figgie-footer">
+<p>♠ ♥ ♦ ♣ · Quant Training · Understanding Figgie<br>
+Work in progress. More sections coming soon.</p>
+</div>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/floorman\.github\.io\/blog\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
