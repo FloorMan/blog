@@ -1,0 +1,23 @@
+# --- Quarto ---
+# Rendered site: `quarto publish gh-pages` builds and pushes this to the gh-pages branch
+/_site/
+# Quarto's internal cache
+/.quarto/
+# Temp notebooks Quarto creates while rendering
+**/*.quarto_ipynb
+# NOTE: do NOT ignore /_freeze/ -- commit it so frozen code output isn't re-run
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+.env
+
+# --- OS / editor ---
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
